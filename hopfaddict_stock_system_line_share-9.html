@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HOPFADDICT - ระบบนับสต๊อก</title>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans Thai",sans-serif;background:#111;color:#eee}
+.wrap{max-width:1100px;margin:auto;padding:18px}.head{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+h1{margin:0;font-size:24px}.date{background:#222;border:1px solid #444;padding:9px 12px;border-radius:10px;color:#ddd}
+.card{background:#191919;border:1px solid #333;border-radius:14px;padding:14px;margin-top:14px;overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:9px 8px;border-bottom:1px solid #303030;text-align:center}
+th{background:#242424;position:sticky;top:0}td:first-child,th:first-child{text-align:left}
+input{width:90px;background:#101010;color:#fff;border:1px solid #444;border-radius:8px;padding:8px;text-align:center;font-size:16px}
+.pkg{font-weight:700}.total{font-size:18px;font-weight:700}.muted{color:#aaa;font-size:13px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}button{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer}
+.save{background:#eee;color:#111}.clear{background:#333;color:#fff}.green{color:#9fe870}
+.summary{display:flex;gap:10px;flex-wrap:wrap}.box{background:#222;border:1px solid #3a3a3a;border-radius:10px;padding:10px 14px}.box b{font-size:20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div><h1>📦 HOPFADDICT — ระบบนับสต๊อก</h1><div class="muted">ช่อง 2 = ลัง/แพ็ค/ถาด · ช่อง 3 = บนชั้น (จำนวนขวด) · ระบบคำนวณรวมอัตโนมัติ</div></div>
+    <div class="date" id="date"></div>
+  </div>
+
+  <div class="card">
+    <div class="summary">
+      <div class="box">สินค้าทั้งหมด <b id="count">0</b> รายการ</div>
+      <div class="box">รวมทั้งหมด <b id="all">0</b> ขวด</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="head">
+      <div><b>📅 บันทึกยอดรวมสต๊อกตามวันที่</b><div class="muted">กรอกเป็น “จำนวนขวดรวม” ได้โดยตรง แล้วกดบันทึก</div></div>
+      <input id="stockDate" type="date" style="width:160px">
+    </div>
+    <div class="btns">
+      <button class="save" onclick="loadDate()">📂 โหลดวันที่เลือก</button>
+      <button class="save" onclick="saveDateTotal()">💾 บันทึกยอดรวมวันนี้</button>
+      <button class="save" onclick="shareLine()">📲 แชร์ LINE</button>
+    </div>
+  </div>
+
+  <div class="card">
+  <table>
+    <thead><tr>
+      <th>รายการ</th><th>ช่อง 2<br><span class="muted">ลัง / แพ็ค / ถาด</span></th>
+      <th>ช่อง 3<br><span class="muted">บนชั้น (ขวด)</span></th>
+      <th>รวม<br><span class="muted">จำนวนขวด</span></th><th>เทียบเป็นลัง/แพ็ค/ถาด</th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="btns">
+    <button class="save" onclick="save()">💾 บันทึกสต๊อก</button>
+    <button class="save" onclick="copyLine()">📋 คัดลอกรายการส่ง LINE</button>
+    <button class="clear" onclick="resetAll()">↺ ล้างข้อมูลวันนี้</button>
+  </div>
+  </div>
+</div>
+
+<script>
+const products = [
+["น้ำ",12,"แพ็ค"],["โซดา",24,"ถาด"],["สไปร์",24,"ถาด"],["โค้ก",24,"ถาด"],
+["โค้กซีโร่",24,"ถาด"],["ลิปตัน",12,"แพ็ค"],["เป๊ปซี่",24,"ถาด"],
+["ชเวปส์",24,"ถาด"],["Budweiser",12,"ลัง"],["Leo",12,"ลัง"],
+["Heineken",12,"ลัง"],["Heineken Silver",12,"ลัง"],["Heineken 0%",12,"ลัง"],
+["Asahi",12,"ลัง"],["Carlsberg",12,"ลัง"],["Chang",12,"ลัง"],
+["Singha",12,"ลัง"],["Singha Reserve",12,"ลัง"],["Regency",12,"ลัง"],
+["Regency กลม",12,"ลัง"],["Queen Chardonnay",12,"ลัง"],["Granriviera",12,"ลัง"],
+["Killibinbin Shiver",12,"ลัง"],["Killibinbin Sneaky",12,"ลัง"],
+["Robert Mondavi",12,"ลัง"],["Tavernello Vino Rosso",12,"ลัง"],["Camille de Lauré",12,"ลัง"],
+["Granrivierа",12,"ลัง"],["St-Remy XO",12,"ลัง"],["Three KWW",12,"ลัง"],
+["Jim Beam",12,"ลัง"],["Wild Turkey",12,"ลัง"],["Jameson",12,"ลัง"],["I Love U Redwine",1,"ขวด"]
+];
+
+let currentDate = new Date().toISOString().slice(0,10);
+const dateInput = document.getElementById("stockDate");
+dateInput.value = currentDate;
+document.getElementById("date").textContent="วันที่ "+new Date().toLocaleDateString("th-TH",{day:"2-digit",month:"2-digit",year:"numeric"});
+let key="hopf_stock_"+currentDate;
+let old=JSON.parse(localStorage.getItem(key)||"{}");
+
+function render(){
+ let total=0, html="";
+ products.forEach((p,i)=>{
+   const [name,size,unit]=p, d=old[i]||{pack:0,shelf:0};
+   const pack=Number(d.pack)||0, shelf=Number(d.shelf)||0, bottles=pack*size+shelf;
+   total+=bottles;
+   const full=Math.floor(bottles/size), rem=bottles%size;
+   html+=`<tr>
+    <td><b>${name}</b><div class="muted">1 ${unit} = ${size} ขวด</div></td>
+    <td><input type="number" min="0" value="${pack}" onchange="chg(${i},'pack',this.value)"></td>
+    <td><input type="number" min="0" value="${shelf}" onchange="chg(${i},'shelf',this.value)"></td>
+    <td class="total" id="t${i}">${bottles}</td>
+    <td class="pkg" id="p${i}">${full} ${unit}${rem?` + ${rem} ขวด`:""}</td>
+   </tr>`;
+ });
+ document.getElementById("rows").innerHTML=html;
+ document.getElementById("count").textContent=products.length;
+ document.getElementById("all").textContent=total;
+}
+function chg(i,k,v){
+ old[i]=old[i]||{pack:0,shelf:0}; old[i][k]=Math.max(0,parseInt(v||0));
+ const [n,size,unit]=products[i], bottles=old[i].pack*size+old[i].shelf;
+ document.getElementById("t"+i).textContent=bottles;
+ const full=Math.floor(bottles/size),rem=bottles%size;
+ document.getElementById("p"+i).textContent=full+" "+unit+(rem?" + "+rem+" ขวด":"");
+ document.getElementById("all").textContent=products.reduce((s,p,j)=>s+(old[j]?.pack||0)*p[1]+(old[j]?.shelf||0),0);
+}
+function save(){localStorage.setItem(key,JSON.stringify(old));alert("บันทึกสต๊อกวันนี้แล้ว");}
+function lineText(){
+  const d=new Date();
+  const date=d.toLocaleDateString("th-TH",{day:"2-digit",month:"2-digit",year:"numeric"});
+  let text=`📦 HOPFADDICT สรุปสต๊อก\\nวันที่ ${date}\\n\\n`;
+  let grand=0;
+  products.forEach((p,i)=>{
+    const [name,size,unit]=p, x=old[i]||{pack:0,shelf:0};
+    const pack=Number(x.pack)||0, shelf=Number(x.shelf)||0;
+    const bottles=pack*size+shelf;
+    grand+=bottles;
+    if(pack||shelf||bottles){
+      text+=`${name}: ${bottles} ขวด`;
+      if(pack||shelf) text+=` (ช่อง2 ${pack} ${unit}, ช่อง3 ${shelf} ขวด)`;
+      text+="\\n";
+    }
+  });
+  text+=`\\nรวมทั้งหมด: ${grand} ขวด`;
+  return text;
+}
+async function copyLine(){
+  const text=lineText();
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("คัดลอกรายการสต๊อกแล้ว นำไปวางใน LINE ได้เลย");
+  }catch(e){
+    prompt("คัดลอกข้อความนี้ไปส่ง LINE:",text);
+  }
+}
+
+function setDateKey(v) {
+  currentDate=v; key="hopf_stock_"+v;
+  old=JSON.parse(localStorage.getItem(key)||"{}");
+  render();
+}
+function loadDate(){
+  setDateKey(document.getElementById("stockDate").value);
+}
+function saveDateTotal(){
+  localStorage.setItem(key,JSON.stringify(old));
+  alert("บันทึกยอดรวมสต๊อกวันที่ "+document.getElementById("stockDate").value+" แล้ว");
+}
+function shareLine(){
+  const d=document.getElementById("stockDate").value;
+  const parts=d.split("-");
+  const thaiDate = parts.length===3 ? parts[2]+"/"+parts[1]+"/"+String(Number(parts[0])+543).slice(-2) : d;
+  let text="นับสต๊อก "+thaiDate+"\n";
+  products.forEach((p,i)=>{
+    const x=old[i]||{pack:0,shelf:0};
+    const bottles=(Number(x.pack)||0)*p[1]+(Number(x.shelf)||0);
+    text+=p[0]+"= "+bottles+"\n";
+  });
+  if(navigator.share){
+    navigator.share({text:text}).catch(()=>{});
+  }else{
+    const url="https://line.me/R/msg/text/?"+encodeURIComponent(text);
+    window.open(url,"_blank");
+  }
+}
+function seed270969(){
+  if(!localStorage.getItem("hopf_stock_2026-09-27")){
+    const totals={"0": 699, "1": 128, "2": 0, "3": 69, "4": 44, "5": 60, "6": 8, "7": 5, "8": 76, "9": 18, "10": 20, "11": 18, "12": 0, "13": 21, "14": 33, "15": 41, "16": 98, "17": 27, "18": 3, "19": 12, "20": 0, "21": 0, "22": 0, "23": 1, "24": 1, "25": 1, "26": 1, "27": 0, "28": 1, "29": 1, "30": 1, "31": 1, "32": 1};
+    const data={};
+    products.forEach((p,i)=>{
+      const n=Number(totals[String(i)]||0);
+      data[i]={pack:Math.floor(n/p[1]),shelf:n%p[1]};
+    });
+    localStorage.setItem("hopf_stock_2026-09-27",JSON.stringify(data));
+  }
+}
+seed270969();
+
+function resetAll(){if(confirm("ล้างข้อมูลสต๊อกของวันนี้?")){localStorage.removeItem(key);location.reload();}}
+render();
+</script>
+</body>
+</html>
